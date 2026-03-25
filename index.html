@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>LomboFit — Programme L4-L5</title>
+
+<!-- PWA iOS -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LomboFit">
+<meta name="theme-color" content="#0e1412">
+
+<!-- PWA Manifest inline via JS blob (set in script) -->
+<link id="manifest-link" rel="manifest">
+
+<!-- Apple touch icon (inline SVG as data URI) -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%230e1412'/%3E%3Ctext x='90' y='115' font-size='80' text-anchor='middle' fill='%2322c980'%3E🏔%3C/text%3E%3C/svg%3E">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --bg: #0e1412;
+    --bg2: #141c19;
+    --bg3: #1a2420;
+    --bg4: #20302a;
+    --card: #1a2420;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #e8ede9;
+    --text2: #8fa898;
+    --text3: #5a756a;
+    --accent: #22c980;
+    --accent2: #1a9f65;
+    --amber: #f0a500;
+    --blue: #4a9eff;
+    --red: #ff6b6b;
+    --safe-top: env(safe-area-inset-top, 44px);
+    --safe-bottom: env(safe-area-inset-bottom, 20px);
+    --nav-h: 72px;
+    --font: -apple-system, 'SF Pro Display', BlinkMacSystemFont, sans-serif;
+  }
+
+  html, body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    height: 100%;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── LAYOUT ── */
+  #app { display: flex; flex-direction: column; height: 100dvh; }
+
+  #main {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding-bottom: calc(var(--nav-h) + var(--safe-bottom) + 16px);
+  }
+
+  /* ── STATUS BAR SAFE AREA ── */
+  .status-pad { height: calc(var(--safe-top) + 4px); background: var(--bg); }
+
+  /* ── BOTTOM NAV ── */
+  #bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: calc(var(--nav-h) + var(--safe-bottom));
+    background: rgba(14,20,18,0.96);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border-top: 0.5px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    padding-top: 8px;
+    padding-bottom: var(--safe-bottom);
+    z-index: 100;
+  }
+
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--text3);
+    font-size: 10px;
+    font-family: var(--font);
+    cursor: pointer;
+    padding: 4px 0;
+    transition: color .15s;
+  }
+  .nav-btn.active { color: var(--accent); }
+  .nav-btn svg { width: 24px; height: 24px; }
+
+  /* ── PAGES ── */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    padding: 20px 20px 12px;
+  }
+  .page-header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+  .page-header p { font-size: 14px; color: var(--text2); margin-top: 4px; }
+
+  /* ── WEEK STRIP ── */
+  .week-strip {
+    display: flex;
+    gap: 6px;
+    padding: 0 20px 16px;
+    overflow-x: auto;
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .week-strip::-webkit-scrollbar { display: none; }
+
+  .day-pill {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    border-radius: 14px;
+    padding: 10px 14px;
+    cursor: pointer;
+    transition: all .15s;
+    min-width: 60px;
+  }
+  .day-pill.active { background: var(--accent); border-color: var(--accent); }
+  .day-pill.active .dp-name, .day-pill.active .dp-type { color: #0e1412; }
+  .dp-name { font-size: 12px; font-weight: 600; color: var(--text2); }
+  .dp-dot { width: 5px; height: 5px; border-radius: 50%; }
+  .dp-type { font-size: 9px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
+
+  /* ── DAY CONTENT ── */
+  .day-meta {
+    display: flex;
+    gap: 8px;
+    padding: 0 20px 16px;
+    flex-wrap: wrap;
+  }
+  .meta-chip {
+    font-size: 12px;
+    font-weight: 500;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 0.5px solid var(--border);
+  }
+  .chip-green { background: rgba(34,201,128,.12); color: var(--accent); border-color: rgba(34,201,128,.25); }
+  .chip-blue { background: rgba(74,158,255,.12); color: var(--blue); border-color: rgba(74,158,255,.25); }
+  .chip-amber { background: rgba(240,165,0,.12); color: var(--amber); border-color: rgba(240,165,0,.25); }
+  .chip-gray { background: var(--bg3); color: var(--text2); }
+
+  .day-title-bar {
+    padding: 0 20px 20px;
+  }
+  .day-title-bar h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.3px; }
+  .day-title-bar p { font-size: 13px; color: var(--text2); margin-top: 3px; }
+
+  /* ── SECTION ── */
+  .section { margin-bottom: 8px; }
+  .section-header {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--text3);
+    padding: 0 20px 8px;
+  }
+
+  /* ── EXERCISE CARD ── */
+  .ex-card {
+    margin: 0 16px 8px;
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: border-color .15s;
+  }
+  .ex-card.open { border-color: var(--border2); }
+
+  .ex-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  .ex-icon {
+    width: 42px; height: 42px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+  .icon-mcgill { background: rgba(34,201,128,.15); }
+  .icon-renfo { background: rgba(74,158,255,.15); }
+  .icon-mobilite { background: rgba(240,165,0,.15); }
+
+  .ex-info { flex: 1; min-width: 0; }
+  .ex-name { font-size: 15px; font-weight: 600; color: var(--text); }
+  .ex-dose { font-size: 12px; color: var(--text2); margin-top: 2px; }
+
+  .ex-chevron {
+    color: var(--text3);
+    transition: transform .2s;
+    font-size: 18px;
+    line-height: 1;
+  }
+  .ex-card.open .ex-chevron { transform: rotate(90deg); }
+
+  .ex-body {
+    display: none;
+    padding: 0 16px 16px;
+    border-top: 0.5px solid var(--border);
+  }
+  .ex-card.open .ex-body { display: block; }
+
+  .ex-desc {
+    font-size: 14px;
+    color: var(--text2);
+    line-height: 1.6;
+    padding-top: 12px;
+  }
+
+  .ex-tip {
+    margin-top: 10px;
+    background: rgba(34,201,128,.08);
+    border-left: 2px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+  .ex-tip strong { color: var(--accent); }
+
+  /* TIMER */
+  .timer-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 12px;
+    background: var(--bg4);
+    border: 0.5px solid var(--border2);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    font-family: var(--font);
+    transition: all .15s;
+    -webkit-user-select: none;
+  }
+  .timer-btn:active { transform: scale(0.97); }
+  .timer-btn .timer-display { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; }
+
+  /* ── REST DAY ── */
+  .rest-day {
+    margin: 24px 20px;
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    border-radius: 20px;
+    padding: 40px 24px;
+    text-align: center;
+  }
+  .rest-day .rest-emoji { font-size: 52px; }
+  .rest-day h3 { font-size: 20px; font-weight: 700; margin-top: 16px; }
+  .rest-day p { font-size: 14px; color: var(--text2); margin-top: 8px; line-height: 1.5; }
+
+  /* ── PROGRESS RING ── */
+  .progress-section { padding: 0 20px 20px; }
+  .prog-label { font-size: 12px; color: var(--text3); margin-bottom: 8px; }
+  .prog-bar-bg { background: var(--bg3); border-radius: 4px; height: 4px; }
+  .prog-bar-fill { background: var(--accent); height: 4px; border-radius: 4px; transition: width .4s; }
+
+  /* ── INFO PAGE ── */
+  .info-section { padding: 0 20px 24px; }
+  .info-card {
+    background: var(--card);
+    border: 0.5px solid var(--border);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 10px;
+  }
+  .info-card h3 { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .info-card p { font-size: 13px; color: var(--text2); line-height: 1.55; }
+  .info-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 3px 8px;
+    border-radius: 6px;
+    margin-bottom: 8px;
+  }
+  .badge-science { background: rgba(74,158,255,.15); color: var(--blue); }
+  .badge-warn { background: rgba(240,165,0,.15); color: var(--amber); }
+  .badge-green { background: rgba(34,201,128,.15); color: var(--accent); }
+
+  /* ── HERO CARD ── */
+  .hero-card {
+    margin: 0 20px 20px;
+    background: linear-gradient(135deg, #1a3d2e 0%, #0f2419 100%);
+    border: 0.5px solid rgba(34,201,128,.2);
+    border-radius: 20px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero-card::after {
+    content: '🏔';
+    position: absolute;
+    right: 16px;
+    bottom: -4px;
+    font-size: 56px;
+    opacity: .15;
+  }
+  .hero-card h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+  .hero-card p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+  .hero-stats {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+  }
+  .hero-stat {
+    background: rgba(0,0,0,.25);
+    border-radius: 10px;
+    padding: 10px 14px;
+    text-align: center;
+  }
+  .hero-stat strong { display: block; font-size: 20px; font-weight: 700; color: var(--accent); }
+  .hero-stat span { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: .06em; }
+
+  /* ── WEEKLY OVERVIEW ── */
+  .weekly-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 4px;
+    padding: 0 20px 20px;
+  }
+  .wg-cell {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    cursor: pointer;
+    transition: all .15s;
+    gap: 2px;
+  }
+  .wg-cell span:first-child { font-size: 16px; }
+
+  /* Animations */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .animate-in { animation: fadeUp .2s ease both; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="status-pad"></div>
+  <div id="main">
+
+    <!-- ══ PAGE : PROGRAMME ══ -->
+    <div class="page active" id="page-programme">
+      <div class="page-header">
+        <h1>Programme</h1>
+        <p>L4-L5 — Semaine type</p>
+      </div>
+
+      <!-- Week strip -->
+      <div class="week-strip" id="weekStrip"></div>
+
+      <!-- Day content -->
+      <div id="dayContent"></div>
+    </div>
+
+    <!-- ══ PAGE : ACCUEIL ══ -->
+    <div class="page" id="page-accueil">
+      <div class="page-header">
+        <h1>LomboFit</h1>
+        <p>Hernie discale L4-L5 — Gestion active</p>
+      </div>
+
+      <div class="hero-card">
+        <h2>Ton programme</h2>
+        <p>Validé par la littérature scientifique (McGill, 2010+)</p>
+        <div class="hero-stats">
+          <div class="hero-stat"><strong>6</strong><span>jours actifs</span></div>
+          <div class="hero-stat"><strong>28</strong><span>exercices</span></div>
+          <div class="hero-stat"><strong>3h</strong><span>semaine</span></div>
+        </div>
+      </div>
+
+      <div class="section-header" style="padding: 0 20px 10px;">Vue de la semaine</div>
+      <div class="weekly-grid" id="weeklyGrid"></div>
+
+      <div class="section-header" style="padding: 0 20px 10px;">Rappels clés</div>
+      <div style="padding: 0 16px;">
+        <div class="info-card">
+          <div class="info-badge badge-science">Science</div>
+          <h3>Pourquoi le Big 3 de McGill ?</h3>
+          <p>Ces 3 exercices activent les multifides, le transverse et le carré des lombes avec une pression intradiscale minimale — confirmé par EMG et biomécanique.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-badge badge-warn">Attention</div>
+          <h3>En cas de crise</h3>
+          <p>Passer uniquement aux McKenzie Press-Up + McGill Big 3. Supprimer tout renforcement jusqu'à disparition des symptômes. Ne pas s'allonger plus de 48h.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-badge badge-green">Hyrox / Spartan</div>
+          <h3>Compatibilité sport</h3>
+          <p>Les jours de compétition remplacent le renforcement du mercredi ou vendredi. Les séances McGill restent en place même les semaines de course.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ PAGE : INFO ══ -->
+    <div class="page" id="page-info">
+      <div class="page-header">
+        <h1>Comprendre</h1>
+        <p>Hernie L4-L5 — Les fondamentaux</p>
+      </div>
+
+      <div class="info-section">
+        <div class="info-card">
+          <div class="info-badge badge-science">Anatomie</div>
+          <h3>Ce qui se passe à L4-L5</h3>
+          <p>Le nucleus pulposus a migré postérolatéralement, pouvant comprimer la racine nerveuse L5. La dégénérescence discale associée à l'arthrose débutante réduit la hauteur discale et augmente la charge sur les facettes articulaires.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-badge badge-green">Mécanisme protecteur</div>
+          <h3>Le corset musculaire actif</h3>
+          <p>Les multifides lombaires + transverse de l'abdomen + érecteurs du rachis + plancher pelvien forment un système de stabilisation qui décharge le disque. Ce programme les active en priorité.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-badge badge-science">Nutrition</div>
+          <h3>Compléments à envisager</h3>
+          <p><strong style="color:var(--text)">Oméga-3</strong> (EPA/DHA ≥ 2g/j) — niveau de preuve modéré à bon sur l'inflammation et l'arthrose (Osteoarthritis & Cartilage, 2020).<br><br><strong style="color:var(--text)">Vitamine D</strong> — taux cible > 30 ng/mL, associé à une meilleure santé discale. Vérifier par bilan sanguin.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-badge badge-science">Sommeil</div>
+          <h3>Réhydratation discale nocturne</h3>
+          <p>Le disque intervertébral se réhydrate principalement en décubitus (la nuit). La privation chronique de sommeil altère ce mécanisme et augmente les cytokines pro-inflammatoires. Le sommeil est une intervention directe sur la santé discale.</p>
+        </div>
+        <div class="info-card">
+          <div class="info-badge badge-warn">McKenzie</div>
+          <h3>Direction préférentielle</h3>
+          <p>Pour une hernie postérolatérale L4-L5, les extensions (McKenzie Press-Up) centralisent souvent la douleur vers le bas du dos, réduisant l'irradiation dans la jambe. Si la douleur s'aggrave en extension, consulter un kinésithérapeute formé McKenzie.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- ══ BOTTOM NAV ══ -->
+  <nav id="bottom-nav">
+    <button class="nav-btn" id="btn-accueil" onclick="showPage('accueil')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
+        <polyline points="9,22 9,12 15,12 15,22"/>
+      </svg>
+      Accueil
+    </button>
+    <button class="nav-btn active" id="btn-programme" onclick="showPage('programme')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+        <line x1="8" y1="14" x2="8" y2="14" stroke-width="2.5"/><line x1="12" y1="14" x2="12" y2="14" stroke-width="2.5"/><line x1="8" y1="18" x2="8" y2="18" stroke-width="2.5"/><line x1="12" y1="18" x2="12" y2="18" stroke-width="2.5"/>
+      </svg>
+      Programme
+    </button>
+    <button class="nav-btn" id="btn-info" onclick="showPage('info')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <circle cx="12" cy="12" r="10"/>
+        <line x1="12" y1="8" x2="12" y2="8" stroke-width="2.5"/>
+        <line x1="12" y1="12" x2="12" y2="16"/>
+      </svg>
+      Comprendre
+    </button>
+  </nav>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────
+const DAYS = [
+  {
+    key:'lun', label:'Lun', title:'McGill Big 3 + Core profond',
+    type:'mcgill', color:'#22c980', dot:'#22c980', duration:'25–30 min', emoji:'🔄',
+    sections:[
+      { name:'McGill Big 3', exercises:[
+        { icon:'🔄', cat:'mcgill', name:'McGill Curl-Up', dose:'3 × 10 rép.',
+          desc:'Allongé sur le dos, une jambe pliée, une tendue. Main sous la lordose lombaire pour la maintenir neutre. Décollez légèrement tête et épaules sans écraser le bas du dos.',
+          tip:'Ne pas ramener le menton sur la poitrine — garder la nuque longue. Monter lentement en 2s, tenir 1s, descendre en 2s.', timer:null },
+        { icon:'🦅', cat:'mcgill', name:'Bird Dog', dose:'3 × 8 rép. chaque côté',
+          desc:'À 4 pattes, dos neutre. Étendez simultanément le bras opposé à la jambe en maintenant le bassin parfaitement horizontal. Évitez toute rotation du tronc.',
+          tip:'Imaginez un verre d\'eau posé sur votre dos : il ne doit pas se renverser. Tenir 2–3s en haut.', timer:3 },
+        { icon:'🏔', cat:'mcgill', name:'Side Bridge', dose:'3 × 20–30s chaque côté',
+          desc:'Sur le côté, appui sur l\'avant-bras et le pied. Corps aligné de la tête aux pieds. Ne pas laisser la hanche s\'affaisser.',
+          tip:'Variante progressive : débuter sur le genou, puis pied entier. Ne jamais basculer la hanche vers l\'avant.', timer:25 }
+      ]},
+      { name:'Core profond complémentaire', exercises:[
+        { icon:'🦋', cat:'renfo', name:'Dead Bug', dose:'3 × 8 rép. chaque côté',
+          desc:'Sur le dos, bras tendus vers le plafond, hanches et genoux à 90°. Abaissez lentement le bras droit et la jambe gauche (tendue) jusqu\'à frôler le sol.',
+          tip:'Maintenir la pression lombaire constante contre le sol. Expirer pendant la descente.', timer:null },
+        { icon:'⬜', cat:'renfo', name:'Planche frontale', dose:'3 × 20–30s',
+          desc:'Sur les avant-bras, corps rigide de la tête aux talons. Serrez le ventre, les fessiers et les quadriceps simultanément.',
+          tip:'Plutôt que "tenir", pensez à "pousser le sol loin de vous". Évitez de lever les fesses.', timer:25 }
+      ]}
+    ]
+  },
+  {
+    key:'mar', label:'Mar', title:'Mobilité thoracique & hanches',
+    type:'mobilite', color:'#f0a500', dot:'#f0a500', duration:'20–25 min', emoji:'🔃',
+    sections:[
+      { name:'Colonne thoracique', exercises:[
+        { icon:'🔃', cat:'mobilite', name:'Rotation thoracique assise', dose:'3 × 10 rép. chaque côté',
+          desc:'Assis en tailleur, bras croisés sur la poitrine. Faites pivoter le buste lentement de gauche à droite, hanches fixes. Regardez derrière vous au maximum.',
+          tip:'Toute la rotation doit venir du thorax (T6–T12), pas des lombaires. Imaginez une vis qui tourne au centre de votre poitrine.', timer:null },
+        { icon:'🐱', cat:'mobilite', name:'Cat-Camel', dose:'2 × 10 cycles',
+          desc:'À 4 pattes, enchaînez lentement flexion maximale (dos arrondi) puis extension douce (ventre qui descend). Ne forcez jamais les amplitudes.',
+          tip:'C\'est un exercice de lubrification articulaire, pas de stretching. Lent et fluide, sans douleur.', timer:null },
+        { icon:'📐', cat:'mobilite', name:'Extension thoracique sur foam roller', dose:'2 × 60s en T4-T8',
+          desc:'Rouleau placé perpendiculairement à la colonne, sous T4-T8. Bras croisés, laissez le poids du haut du corps créer une extension douce par gravité.',
+          tip:'Descendez progressivement le rouleau segment par segment. Ne jamais placer le rouleau sous les lombaires.', timer:60 }
+      ]},
+      { name:'Hanches & ischio-jambiers', exercises:[
+        { icon:'🦖', cat:'mobilite', name:'Fente basse — hip flexor', dose:'3 × 45s chaque côté',
+          desc:'Genou arrière au sol, hanche avant à 90°. Poussez légèrement la hanche avant vers l\'avant, buste droit, abdos engagés.',
+          tip:'Pour L4-L5 : évitez d\'accentuer la cambrure lombaire. Serrez le fessier du côté de la jambe arrière.', timer:45 },
+        { icon:'🧲', cat:'mobilite', name:'Étirement ischio-jambiers 90-90', dose:'3 × 40s chaque côté',
+          desc:'Allongé, une jambe à 90° de hanche et de genou. Déroulez progressivement la jambe vers le plafond jusqu\'à la limite sans douleur ni flexion lombaire.',
+          tip:'Ne jamais tirer au point de faire décoller le bas du dos. La progression se fait sur des semaines.', timer:40 },
+        { icon:'🔮', cat:'mobilite', name:'Rotation interne/externe de hanche', dose:'3 × 10 rép. chaque côté',
+          desc:'Allongé sur le dos, genoux pliés à 90°. Laissez tomber les genoux alternativement vers l\'intérieur puis l\'extérieur, bassin au sol.',
+          tip:'Amplitude guidée par la hanche, non par le dos. Utile pour compenser les sollicitations Hyrox.', timer:null }
+      ]}
+    ]
+  },
+  {
+    key:'mer', label:'Mer', title:'Renforcement — force fonctionnelle',
+    type:'renfo', color:'#4a9eff', dot:'#4a9eff', duration:'35–45 min', emoji:'🏋',
+    sections:[
+      { name:'Chaîne postérieure — priorité L4-L5', exercises:[
+        { icon:'🏋', cat:'renfo', name:'Good Morning', dose:'4 × 12 rép. — charge modérée',
+          desc:'Pieds largeur d\'épaules, micro-flexion des genoux, buste incliné vers l\'avant en maintenant la lordose naturelle. Les ischio-jambiers contrôlent la descente.',
+          tip:'Jamais de dos rond. Si la mobilité des ischio-jambiers limite l\'amplitude, travaillez d\'abord la flexibilité (voir mardi).', timer:null },
+        { icon:'🔴', cat:'renfo', name:'Hip Thrust', dose:'4 × 12 rép.',
+          desc:'Dos appuyé sur un banc, barre sur les hanches. Poussez les hanches vers le plafond en contractant les fessiers au maximum en haut. Lombaires en position neutre.',
+          tip:'Les fessiers puissants déchargent directement L4-L5. C\'est probablement l\'exercice le plus protecteur du programme.', timer:null },
+        { icon:'🦵', cat:'renfo', name:'Romanian Deadlift (RDL)', dose:'3 × 10 rép.',
+          desc:'Charge légère à modérée, descente contrôlée dos plat, les hanches reculent. Montée par activation des fessiers et des ischio-jambiers.',
+          tip:'Pour votre profil : jamais de flexion lombaire sous charge. Si la technique dévie, réduisez le poids immédiatement.', timer:null }
+      ]},
+      { name:'Stabilité & anti-rotation', exercises:[
+        { icon:'🧩', cat:'renfo', name:'Pallof Press', dose:'3 × 10 rép. chaque côté',
+          desc:'Câble ou élastique à hauteur de torse, corps de profil. Poussez les bras devant vous en résistant à la rotation. Maintenez 2s, revenez lentement.',
+          tip:'Anti-rotation pure : protège le disque en entraînant les multifides et l\'oblique sans flexion-extension.', timer:2 },
+        { icon:'🦾', cat:'renfo', name:'Farmer\'s Carry', dose:'4 × 20m — focus technique',
+          desc:'Poids en main, marchez en maintenant une posture parfaite — épaules en arrière, abdos engagés, pas de balancement latéral du tronc.',
+          tip:'Évitez les charges très lourdes. L\'objectif est le gainage dynamique, pas la performance de grip.', timer:null }
+      ]}
+    ]
+  },
+  {
+    key:'jeu', label:'Jeu', title:'McGill Big 3 + Mobilité légère',
+    type:'mcgill', color:'#22c980', dot:'#22c980', duration:'20–25 min', emoji:'🔄',
+    sections:[
+      { name:'McGill Big 3 — séance de consolidation', exercises:[
+        { icon:'🔄', cat:'mcgill', name:'McGill Curl-Up', dose:'2 × 8 rép.',
+          desc:'Même technique que lundi. Séance de consolidation — focus sur la qualité du mouvement, pas sur la progression du volume.',
+          tip:'Si vous avez pratiqué Hyrox ou Spartan la veille, réduisez à 2 séries et concentrez-vous sur la proprioception.', timer:null },
+        { icon:'🦅', cat:'mcgill', name:'Bird Dog', dose:'2 × 6 rép. chaque côté',
+          desc:'Idem lundi. Version légère pour maintenir la fréquence d\'activation des multifides.', timer:3 },
+        { icon:'🏔', cat:'mcgill', name:'Side Bridge', dose:'2 × 20s chaque côté',
+          desc:'Version courte. Si fatigue lombaire, tenir sur le genou plutôt que sur le pied.', timer:20 }
+      ]},
+      { name:'Mobilité légère', exercises:[
+        { icon:'🔃', cat:'mobilite', name:'McKenzie Press-Up', dose:'2 × 10 rép. lents',
+          desc:'Allongé face au sol, mains sous les épaules. Poussez le buste vers le haut en laissant les hanches au sol. Extension lombaire progressive.',
+          tip:'Pour une hernie postérolatérale L4-L5, cette extension centralisante est souvent soulagente. Arrêtez si la douleur irradie dans la jambe.', timer:null },
+        { icon:'🦖', cat:'mobilite', name:'Fente basse + rotation thoracique', dose:'2 × 8 rép. chaque côté',
+          desc:'En position de fente basse, ajoutez une rotation du buste vers la jambe avant. Combine mobilité de hanche et thoracique en un seul mouvement.',
+          tip:'Particulièrement utile en échauffement avant un entraînement Hyrox ou Spartan.', timer:null }
+      ]}
+    ]
+  },
+  {
+    key:'ven', label:'Ven', title:'Renforcement — endurance musculaire',
+    type:'renfo', color:'#4a9eff', dot:'#4a9eff', duration:'30–40 min', emoji:'🏋',
+    sections:[
+      { name:'Circuit fonctionnel', exercises:[
+        { icon:'🧱', cat:'renfo', name:'Wall Sit isométrique', dose:'4 × 30–45s',
+          desc:'Dos plat contre le mur, cuisse à l\'horizontale. Engagement simultané du quadriceps, du gainage et des fessiers.',
+          tip:'Isométrie prolongée : moins de compression discale qu\'une squat dynamique, renforcement équivalent.', timer:35 },
+        { icon:'🔺', cat:'renfo', name:'Step-Up unilatéral', dose:'3 × 12 rép. chaque côté',
+          desc:'Montée contrôlée sur une marche, hanche d\'appui qui travaille. Descente lente. Repère les asymétries de force.',
+          tip:'Unilatéral = asymétrie détectée et corrigée. Gardez le bassin horizontal en permanence.', timer:null },
+        { icon:'🌊', cat:'renfo', name:'Superman Hold', dose:'3 × 10 rép., tenir 3s',
+          desc:'Allongé face au sol, bras et jambes décollés simultanément. Extension dorsale active — activation des érecteurs et des multifides.',
+          tip:'Poids du corps uniquement. Si douleur lombaire, réduire l\'amplitude. Respiration continue.', timer:3 }
+      ]},
+      { name:'Core — variation légère', exercises:[
+        { icon:'⬛', cat:'renfo', name:'Planche + alternance de bras', dose:'3 × 8 rép. chaque bras',
+          desc:'Planche sur les genoux, levez alternativement un bras à hauteur d\'épaule sans laisser le bassin tourner. Isométrique + anti-rotation.', timer:null },
+        { icon:'🌀', cat:'renfo', name:'Hollow Body Hold', dose:'3 × 20s',
+          desc:'Allongé, bas du dos plaqué, bras derrière la tête, jambes à 45°. Corps en forme de "banane creuse".',
+          tip:'Vérifier que le bas du dos reste en contact avec le sol. Si non, remonter les jambes.', timer:20 }
+      ]}
+    ]
+  },
+  {
+    key:'sam', label:'Sam', title:'Mobilité complète + récupération active',
+    type:'mobilite', color:'#f0a500', dot:'#f0a500', duration:'25–30 min', emoji:'🔃',
+    sections:[
+      { name:'Routine mobilité complète', exercises:[
+        { icon:'🌍', cat:'mobilite', name:'World\'s Greatest Stretch', dose:'2 × 6 rép. chaque côté',
+          desc:'Fente avant, main avant au sol, rotation thoracique (bras vers le plafond), retour. Ouvre la hanche + thoracique + ischio-jambiers en un mouvement.',
+          tip:'Un des exercices les plus complets du programme pour votre profil. Idéal en échauffement Hyrox/Spartan également.', timer:null },
+        { icon:'🔮', cat:'mobilite', name:'90-90 Hip Switch', dose:'3 × 8 transitions',
+          desc:'Assis au sol, jambes en 90-90. Basculez les hanches de l\'autre côté en contrôle. Travaille la RI et RE en amplitude fonctionnelle.',
+          tip:'Ne laissez pas le bassin pivoter — seules les hanches bougent.', timer:null },
+        { icon:'🌙', cat:'mobilite', name:'Étirement du piriforme (figure 4)', dose:'3 × 45s chaque côté',
+          desc:'Allongé sur le dos, cheville sur le genou opposé. Attirez les deux jambes vers la poitrine. Étire le piriforme et les rotateurs externes.',
+          tip:'Le piriforme comprimé peut mimer ou aggraver une symptomatologie L4-L5. Essentiel après une semaine d\'entraînement.', timer:45 },
+        { icon:'💨', cat:'mobilite', name:'Respiration diaphragmatique', dose:'5–10 min',
+          desc:'Allongé, main sur le ventre. Inspirez en 4s (ventre qui monte), retenez 2s, expirez en 6s. Inhibe le système nerveux sympathique.',
+          tip:'La récupération du système nerveux est aussi importante que la récupération musculaire.', timer:null }
+      ]}
+    ]
+  },
+  {
+    key:'dim', label:'Dim', title:'Repos actif',
+    type:'repos', color:'#5a756a', dot:'#3d4f49', duration:'—', emoji:'💤', sections:[]
+  }
+];
+
+const TYPE_CHIP = {
+  mcgill: 'chip-green', renfo: 'chip-blue', mobilite: 'chip-amber', repos: 'chip-gray'
+};
+const TYPE_LABEL = {
+  mcgill: 'McGill + Core', renfo: 'Renforcement', mobilite: 'Mobilité', repos: 'Repos'
+};
+const WEEKLY_BG = {
+  mcgill: 'rgba(34,201,128,.18)', renfo: 'rgba(74,158,255,.18)',
+  mobilite: 'rgba(240,165,0,.18)', repos: 'rgba(90,117,106,.1)'
+};
+
+let activeDay = 0;
+const timers = {};
+
+// ── PWA MANIFEST ──────────────────────────────────────────────────────────
+const manifest = {
+  name: 'LomboFit — Programme L4-L5',
+  short_name: 'LomboFit',
+  description: 'Programme de rééducation lombaire basé sur la méthode McGill',
+  start_url: '/',
+  display: 'standalone',
+  background_color: '#0e1412',
+  theme_color: '#0e1412',
+  orientation: 'portrait',
+  icons: [
+    { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='120' fill='%230e1412'/%3E%3Ctext x='256' y='340' font-size='260' text-anchor='middle' fill='%2322c980'%3E🏔%3C/text%3E%3C/svg%3E", sizes: '512x512', type: 'image/svg+xml' }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifest)], { type: 'application/json' });
+document.getElementById('manifest-link').href = URL.createObjectURL(blob);
+
+// ── SERVICE WORKER (offline) ──────────────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  const swCode = `
+    self.addEventListener('install', e => { self.skipWaiting(); });
+    self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
+    });
+  `;
+  const swBlob = new Blob([swCode], { type: 'application/javascript' });
+  navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+}
+
+// ── NAVIGATION ────────────────────────────────────────────────────────────
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.getElementById('btn-' + page).classList.add('active');
+  document.getElementById('main').scrollTop = 0;
+}
+
+// ── WEEK STRIP ────────────────────────────────────────────────────────────
+function buildWeekStrip() {
+  const strip = document.getElementById('weekStrip');
+  strip.innerHTML = '';
+  DAYS.forEach((d, i) => {
+    const pill = document.createElement('div');
+    pill.className = 'day-pill' + (i === activeDay ? ' active' : '');
+    pill.innerHTML = `
+      <span class="dp-name">${d.key}</span>
+      <span class="dp-dot" style="background:${i === activeDay ? '#0e1412' : d.dot}"></span>
+      <span class="dp-type">${TYPE_LABEL[d.type]}</span>
+    `;
+    pill.onclick = () => { activeDay = i; buildWeekStrip(); buildDayContent(); };
+    strip.appendChild(pill);
+  });
+  // Scroll active into view
+  const activePill = strip.children[activeDay];
+  if (activePill) activePill.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+}
+
+// ── DAY CONTENT ───────────────────────────────────────────────────────────
+function buildDayContent() {
+  const d = DAYS[activeDay];
+  const area = document.getElementById('dayContent');
+
+  if (d.type === 'repos') {
+    area.innerHTML = `
+      <div class="day-meta">
+        <span class="meta-chip chip-gray">${TYPE_LABEL.repos}</span>
+        <span class="meta-chip chip-gray">${d.duration}</span>
+      </div>
+      <div class="rest-day animate-in">
+        <div class="rest-emoji">💤</div>
+        <h3>Repos — récupération</h3>
+        <p>Journée dédiée à la récupération passive.<br>Hydratation, sommeil, marche légère si souhaité.</p>
+        <p style="margin-top:12px;font-size:12px;color:var(--text3)">La réhydratation discale se produit principalement en décubitus nocturne.</p>
+      </div>`;
+    return;
+  }
+
+  let html = `
+    <div class="day-meta">
+      <span class="meta-chip ${TYPE_CHIP[d.type]}">${TYPE_LABEL[d.type]}</span>
+      <span class="meta-chip chip-gray">⏱ ${d.duration}</span>
+      <span class="meta-chip chip-gray">${d.sections.reduce((a,s)=>a+s.exercises.length,0)} exercices</span>
+    </div>
+    <div class="day-title-bar animate-in">
+      <h2>${d.title}</h2>
+    </div>`;
+
+  d.sections.forEach(s => {
+    html += `<div class="section"><div class="section-header">${s.name}</div>`;
+    s.exercises.forEach((ex, ei) => {
+      const id = `ex-${activeDay}-${ei}`;
+      const timerHtml = ex.timer ? `
+        <button class="timer-btn" id="tbtn-${id}" onclick="startTimer('${id}', ${ex.timer}, event)">
+          ⏱ Chrono — <span class="timer-display" id="tdisp-${id}">${ex.timer}s</span>
+        </button>` : '';
+      html += `
+        <div class="ex-card animate-in" id="${id}" style="animation-delay:${ei*0.05}s">
+          <div class="ex-top" onclick="toggleEx('${id}')">
+            <div class="ex-icon icon-${ex.cat}">${ex.icon}</div>
+            <div class="ex-info">
+              <div class="ex-name">${ex.name}</div>
+              <div class="ex-dose">${ex.dose}</div>
+            </div>
+            <span class="ex-chevron">›</span>
+          </div>
+          <div class="ex-body">
+            <div class="ex-desc">${ex.desc}</div>
+            ${ex.tip ? `<div class="ex-tip"><strong>Conseil :</strong> ${ex.tip}</div>` : ''}
+            ${timerHtml}
+          </div>
+        </div>`;
+    });
+    html += '</div>';
+  });
+
+  area.innerHTML = html;
+}
+
+// ── EXERCISE TOGGLE ───────────────────────────────────────────────────────
+function toggleEx(id) {
+  const card = document.getElementById(id);
+  card.classList.toggle('open');
+}
+
+// ── TIMER ─────────────────────────────────────────────────────────────────
+function startTimer(id, seconds, e) {
+  e.stopPropagation();
+  if (timers[id]) {
+    clearInterval(timers[id].interval);
+    const disp = document.getElementById('tdisp-' + id);
+    if (disp) disp.textContent = seconds + 's';
+    delete timers[id];
+    const btn = document.getElementById('tbtn-' + id);
+    if (btn) btn.style.borderColor = '';
+    return;
+  }
+  let remaining = seconds;
+  const disp = document.getElementById('tdisp-' + id);
+  const btn = document.getElementById('tbtn-' + id);
+  if (btn) btn.style.borderColor = 'rgba(34,201,128,.4)';
+
+  timers[id] = {
+    interval: setInterval(() => {
+      remaining--;
+      if (disp) disp.textContent = remaining + 's';
+      if (remaining <= 0) {
+        clearInterval(timers[id].interval);
+        delete timers[id];
+        if (disp) disp.textContent = '✓';
+        if (btn) { btn.style.borderColor = 'rgba(34,201,128,.6)'; }
+        if ('vibrate' in navigator) navigator.vibrate([100, 50, 100]);
+      }
+    }, 1000)
+  };
+}
+
+// ── WEEKLY GRID (accueil) ─────────────────────────────────────────────────
+function buildWeeklyGrid() {
+  const grid = document.getElementById('weeklyGrid');
+  grid.innerHTML = '';
+  DAYS.forEach((d, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'wg-cell';
+    cell.style.background = WEEKLY_BG[d.type];
+    cell.style.color = d.color;
+    cell.innerHTML = `<span>${d.emoji}</span><span>${d.key}</span>`;
+    cell.onclick = () => { activeDay = i; showPage('programme'); buildWeekStrip(); buildDayContent(); };
+    grid.appendChild(cell);
+  });
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+// Auto-select today
+const dayMap = { 0:'dim', 1:'lun', 2:'mar', 3:'mer', 4:'jeu', 5:'ven', 6:'sam' };
+const todayKey = dayMap[new Date().getDay()];
+const todayIdx = DAYS.findIndex(d => d.key === todayKey);
+if (todayIdx >= 0) activeDay = todayIdx;
+
+buildWeekStrip();
+buildDayContent();
+buildWeeklyGrid();
+</script>
+</body>
+</html>
